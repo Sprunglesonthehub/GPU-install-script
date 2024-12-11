@@ -58,6 +58,36 @@ if $gpu_present; then
           sudo apt-get install -y libze1 intel-level-zero-gpu intel-opencl-icd clinfo
         fi
 
+       
+        if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == "Debian Unstable"  ]] ; then
+          read -p "In order for Intel Arc to work on Debian, you need to switch to Debian Unstable, would you like to?"yn
+            if [ $yn = "Y" "y" "Yes" "yes" ] ; then
+              # Check if non-free is enabled for Debian 12, offer to enable it and install intel-media-driver-va-non-free
+              if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Debian"* && lsb_release -rs == "12" ]] ; then
+  ================================================          
+              fi
+             # Check if non-free is disabled for Debian 11
+              if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Debian"* && lsb_release -rs == "11" ]] ; then
+              
+              fi
+             
+            fi
+              # If they say "no" they exit the session
+            if [  $yn = "N" "n" "No" "NO" ] ; then
+              echo "You decided to not continue. You will not have support on debian without Sid. It just isn't updated yet. Thank you, we are now exiting"
+              exit
+            fi
+
+
+
+
+        fi           
+        echo "Installing Required Packages for Intel GPUs"
+        sudo apt install -y libigc1 libigdmm-dev libigdfci-dev libva-dev libze-dev intel-ocloc intel-oclock-dev intel-opencl-lcd libze-intel-gpu-dev libze-intel-gpu1 intel-compute-runtime intel-media-driver
+
+
+        clinfo | grep "Device Name" > verification.txt
+        cat verification.txt
     fi
 
     if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Arch Linux"* || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Endeavour OS"* || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Acreetion Linux"* || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Manjaro"* ]]; then
@@ -83,4 +113,7 @@ if $gpu_present; then
                                                                    EndSection" >> /etc/X11/xorg.conf.d/20-intel.conf
         fi
     fi
+
+    clinfo | grep "Device Name" > verification.txt
+    cat verification.txt
 fi
