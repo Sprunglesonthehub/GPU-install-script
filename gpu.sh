@@ -57,31 +57,7 @@ if $gpu_present; then
           echo "Installing GPU Drivers"
           sudo apt-get install -y libze1 intel-level-zero-gpu intel-opencl-icd clinfo
         fi
-
-       
-        if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == "Debian Unstable"  ]] ; then
-          read -p "In order for Intel Arc to work on Debian, you need to switch to Debian Unstable, would you like to?"yn
-            if [ $yn = "Y" "y" "Yes" "yes" ] ; then
-              # Check if non-free is enabled for Debian 12, offer to enable it and install intel-media-driver-va-non-free
-              if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Debian"* && lsb_release -rs == "12" ]] ; then
-  ================================================          
-              fi
-             # Check if non-free is disabled for Debian 11
-              if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Debian"* && lsb_release -rs == "11" ]] ; then
-              
-              fi
-             
-            fi
-              # If they say "no" they exit the session
-            if [  $yn = "N" "n" "No" "NO" ] ; then
-              echo "You decided to not continue. You will not have support on debian without Sid. It just isn't updated yet. Thank you, we are now exiting"
-              exit
-            fi
-
-
-
-
-        fi           
+          
         echo "Installing Required Packages for Intel GPUs"
         sudo apt install -y libigc1 libigdmm-dev libigdfci-dev libva-dev libze-dev intel-ocloc intel-oclock-dev intel-opencl-lcd libze-intel-gpu-dev libze-intel-gpu1 intel-compute-runtime intel-media-driver
 
@@ -112,8 +88,22 @@ if $gpu_present; then
                                                                       Option \"TearFree\" \"true\"
                                                                    EndSection" >> /etc/X11/xorg.conf.d/20-intel.conf
         fi
+     clinfo | grep "Device Name" > verification.txt
+     cat verification.txt 
     fi
-
-    clinfo | grep "Device Name" > verification.txt
-    cat verification.txt
+    if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Fedora"* ]]; then
+        echo "Detected you are on a fedora-based/similar distro, enabling RPM Fusion so I can pull the latest intel drivers, this will include nonfree firmware:"
+        sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-"$(rpm -E %fedora)".noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-"$(rpm -E %fedora)".noarch.rpm -y
+        sudo dnf groupupdate core -y
+        sudo dnf swap ffmpeg-free ffmpeg --allowerasing -y
+        sudo dnf update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin -y
+        sudo dnf install intel-media-driver -y
+        echo "Installing other required firmware and packages:"
+        sudo dnf install rpmfusion-nonfree-release-tainted -y
+        sudo dnf --repo=rpmfusion-nonfree-tainted install "*-firmware" -y
+        sudo dnf install intel-media-driver intel-level-zero intel-ocloc intel-ocloc-devel intel-opencl -y
+     clinfo | grep "Device Name" > verification.txt
+     cat verification.txt 
+    fi
+  echo "There is a file named verification.txt, please check it for the name of your GPU"
 fi
