@@ -1,22 +1,22 @@
 INTEL_GPU="Intel Dg2 (Gen12)"
 
-gputesting() {
+intelgputesting() {
     if lsgpu | grep "$INTEL_GPU" >/dev/null 2>&1; then
         echo "Intel Dg2 (Gen12) GPU detected"
-        gpu_present=true  # Declare and assign the variable here
+        intel_gpu_present=true  # Declare and assign the variable here
     else
         echo "Intel Dg2 (Gen12) GPU not detected"
-        gpu_present=false # Declare and assign the variable here
+        intel_gpu_present=false # Declare and assign the variable here
     fi
 }
 
-gputesting
+intelgputesting
 
 echo "I noticed you are on Intel Arc, please wait while I configure your system for you"
 echo "Installing Graphics drivers"
 
 
-if $gpu_present; then
+if $intel_gpu_present; then
     if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Ubuntu"* || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Debian"* || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Linux Mint"* ]] ; then
         echo "Detected that you are on a Debian-based distribution of some sort, installing packages:"
         if [[ $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Ubuntu" || $(cat /etc/*release | grep -w NAME | cut -d= -f2 | tr -d '\"') == *"Linux Mint" ]] && $lsb_release -rs == "24.10" ; then
@@ -107,3 +107,68 @@ if $gpu_present; then
     fi
   echo "There is a file named verification.txt, please check it for the name of your GPU"
 fi
+
+AMD_GPU="lspci -v | grep -i "VGA" | awk '/VGA compatible controller:/{print $NF}' | xargs lshw -c video -C"
+AMD_PRO_GPU="lspci -v | grep -i "VGA" | awk '/VGA compatible controller:/{print $NF}' | xargs lshw -c video -C"
+
+amdgputesting() {
+    if lsgpu | grep "$AMD_GPU" >/dev/null 2>&1; then
+        echo "AMD GPU detected"
+        amd_gpu_present=true  # Declare and assign the variable here
+    else
+        echo "AMD GPU not detected"
+        amd_gpu_present=false # Declare and assign the variable here
+    fi
+}
+
+amdgputesting
+
+if $amd_gpu_present; then
+    echo "Detected you are on an arch-based/similar distro, installing packages:"
+    echo "Making sure that multilib repo is enabled:"
+    sed -i '/^Multilib/ s/^#//' /etc/pacman.conf
+    echo "Installing 32-bit libraries:"
+    sudo pacman -Syy lib32-mesa --noconfirm
+    read -p "Are you wanting 2D Acceleration/Vulkan? (y/n): " answer
+    if [[ $answer == "y" ]]; then
+        echo "Installing 32-bit vulkan libraries:"
+        sudo pacman -Sy xf86-video-amdgpu --noconfirm
+        AMD_GPU_TYPE=$(lspci -v | grep -i "VGA" | awk '/VGA compatible controller:/{print $NF}' | xargs lshw -c video -C)
+        if [[ "$AMD_GPU_TYPE" == *"Radeon Technologies*" ]]; then
+          echo "Your GPU Type is older AMD. Installing 'lib32-amdvlk' package."
+          sudo pacman -Sy lib32-amdvlk --noconfirm
+        else
+          echo "Your GPU Type is modern AMD. Install 'lib32-vulkan-radeon' package."
+          sudo pacman -Sy lib32-vulkan-radeon --noconfirm
+        fi
+    fi  
+    sudo pacman -Sy vulkan-radeon --noconfirm
+fi
+
+if $amd_gpu_present ; then
+    echo "Detected you are on an arch-based/similar distro, installing packages:"
+    echo "Making sure that multilib repo is enabled:"
+    sed -i '/^Multilib/ s/^#//' /etc/pacman.conf
+fi
+
+read -p "Would you like to install the latest drivers for AMD from source? (y/n): " answer
+if [[ $answer == "y" ]]; then
+    echo "Compiling the latest drivers for AMD from source"
+    echo "grabbing an AUR helper"
+    sudo pacman -S --needed git base-devel
+    git clone https://aur.archlinux.org/yay.git
+    cd yay  
+    makepkg -si
+    yay -Sy mesa-git  lib32-mesa-git --noconfirm
+    echo "Installing 32-bit vulkan libraries:"
+    yay -Sy xf86-video-amdgpu --noconfirm
+    AMD_GPU_TYPE_GIT=$(lspci -v | grep -i "VGA" | awk '/VGA compatible controller:/{print $NF}' | xargs lshw -c video -C)
+    if [[ "$AMD_GPU_TYPE_GIT" == *"Radeon Technologies*" ]]; then
+      echo "Your GPU Type is older AMD. Installing 'lib32-amdvlk' package."
+      yay -Sy lib32-amdvlk --noconfirm
+    else
+      echo "Your GPU Type is modern AMD. Install 'lib32-vulkan-radeon' package."
+      yay -Sy lib32-vulkan-radeon --noconfirm
+    fi
+    yay -Sy vulkan-radeon --noconfirm
+fi  
